@@ -1,4 +1,5 @@
 version: 0.2
+
 env:
   variables:
     COMPOSER_ALLOW_SUPERUSER: "1"
@@ -6,17 +7,36 @@ env:
 phases:
   install:
     commands:
-      - yum -y update && yum -y install php-cli php-json php-mbstring zip unzip curl
+      - set -euo pipefail
+      - echo "==> Detecting package manager & installing PHP"
+      - |
+        if command -v php >/dev/null 2>&1; then
+          echo "PHP found: $(php -v | head -n1)"
+        elif command -v yum >/dev/null 2>&1; then
+          yum -y update
+          yum -y install php-cli php-json php-mbstring zip unzip curl
+        elif command -v dnf >/dev/null 2>&1; then
+          dnf -y update
+          dnf -y install php-cli php-json php-mbstring zip unzip curl
+        elif command -v apt-get >/dev/null 2>&1; then
+          apt-get update -y
+          DEBIAN_FRONTEND=noninteractive apt-get install -y php-cli php-mbstring php-json zip unzip curl
+        else
+          echo "No supported package manager found"; exit 1
+        fi
+      - echo "==> Installing Composer"
       - curl -sS https://getcomposer.org/installer -o composer-setup.php
       - php composer-setup.php --install-dir=/usr/local/bin --filename=composer
       - composer --version
-      - composer install --no-dev --prefer-dist --optimize-autoloader
+      - echo "==> composer install (no-dev)"
+      - composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
   build:
     commands:
-      # اجعل Hooks قابلة للتنفيذ داخل الـ artifact
+      # تأكيد صلاحيات السكربتات (لو موجودة)
       - if [ -d ".platform/hooks/postdeploy" ]; then chmod +x .platform/hooks/postdeploy/*.sh || true; fi
       - if [ -d ".platform/hooks/predeploy" ];  then chmod +x .platform/hooks/predeploy/*.sh  || true; fi
       - echo "Build finished"
+
 artifacts:
   files:
     - '/*'
