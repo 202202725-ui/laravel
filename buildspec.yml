@@ -1,8 +1,23 @@
 version: 0.2
+env:
+  variables:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+
 phases:
+  install:
+    commands:
+      - yum -y update && yum -y install php-cli php-json php-mbstring zip unzip curl
+      - curl -sS https://getcomposer.org/installer -o composer-setup.php
+      - php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+      - composer --version
+      - composer install --no-dev --prefer-dist --optimize-autoloader
   build:
     commands:
-      - echo "OK from CodeBuild"
+      # اجعل Hooks قابلة للتنفيذ داخل الـ artifact
+      - if [ -d ".platform/hooks/postdeploy" ]; then chmod +x .platform/hooks/postdeploy/*.sh || true; fi
+      - if [ -d ".platform/hooks/predeploy" ];  then chmod +x .platform/hooks/predeploy/*.sh  || true; fi
+      - echo "Build finished"
 artifacts:
   files:
     - '/*'
+  discard-paths: no
